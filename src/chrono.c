@@ -158,6 +158,7 @@ int writeChronometerFile(chronometer* chronometers_in, int chronometerCount_in)
 int startChronometer(char* name_in, chronometer** chronometers_in_, int chronometerCount_in)
 {
     chronometer* chronometers_in = (*chronometers_in_);
+    int call_status;
 
     if(chronometers_in != NULL) // first search to see if the chronometer exists
     {
@@ -170,11 +171,29 @@ int startChronometer(char* name_in, chronometer** chronometers_in_, int chronome
                     fprintf(stderr,"error: chronometer already running\n");
                     return TOTAL_FAILURE;
                 }
+                // otherwise it exists but it's stopped.
+                // we have to calculate diff between start and end and subtract it from now
+
+                double currentElapsed = secondsElapsed(chronometers_in[i].startTime,
+                                                       chronometers_in[i].endTime);
+                struct timespec currentTime;
+                call_status = clock_gettime(CLOCK_REALTIME, &currentTime);
+                if(call_status == -1)
+                {
+                    fprintf(stderr,"error: failed to get time to restart chronometer: %s\n",strerror(errno));
+                    return TOTAL_FAILURE;
+                }
+
+                chronometers_in[i].startTime.tv_sec = currentTime.tv_sec - (time_t)currentElapsed;
+                chronometers_in[i].startTime.tv_nsec = currentTime.tv_nsec - (long)((currentElapsed - (long)currentElapsed)*1E9);
+                // NOTE: the tv_nsec field above may be negative, but this will work becuase we do not check startTime for undefinedness.
+                // so the secondsElapsed() function will still work with it.
+                
                 chronometers_in[i].endTime.tv_sec = -1; // set the end time to undefined again
-                chronometers_in[i].endTime.tv_nsec = -1;
+                chronometers_in[i].endTime.tv_nsec = -1; // set the end time to undefined again
 
                 // write the chronometers again
-                int call_status = writeChronometerFile(chronometers_in, chronometerCount_in);
+                call_status = writeChronometerFile(chronometers_in, chronometerCount_in);
                 if(call_status == TOTAL_FAILURE)
                     return TOTAL_FAILURE;
 
@@ -206,13 +225,18 @@ int startChronometer(char* name_in, chronometer** chronometers_in_, int chronome
     chronometers_in[chronometerCount_in].name[nameLength] = 0; // add null byte
 
     struct timespec startTime;
-    clock_gettime(CLOCK_REALTIME, &startTime);
-    chronometers_in[chronometerCount_in].startTime = startTime;
+    call_status = clock_gettime(CLOCK_REALTIME, &startTime);
+    if(call_status == -1)
+    {
+        fprintf(stderr,"error: failed to get time to start chronometer: %s\n",strerror(errno));
+        return TOTAL_FAILURE;
+    }
 
+    chronometers_in[chronometerCount_in].startTime = startTime;
     chronometers_in[chronometerCount_in].endTime.tv_sec = -1;
     chronometers_in[chronometerCount_in].endTime.tv_nsec = -1;
 
-    int call_status = writeChronometerFile(chronometers_in, chronometerCount_in+1); // remember we have one more chronometer now.
+    call_status = writeChronometerFile(chronometers_in, chronometerCount_in+1); // remember we have one more chronometer now.
     if(call_status == TOTAL_FAILURE)
         return TOTAL_FAILURE;
 
@@ -238,11 +262,17 @@ int endChronometer(char* name_in, chronometer* chronometers_in, int chronometerC
         if(strcmp(chronometers_in[i].name, name_in) == 0) // found the one we are looking for
         {
             struct timespec endTime;
-            clock_gettime(CLOCK_REALTIME, &endTime);
+            int call_status = clock_gettime(CLOCK_REALTIME, &endTime);
+            if(call_status == -1)
+            {
+                fprintf(stderr,"error: failed to get time to start chronometer: %s\n",strerror(errno));
+                return TOTAL_FAILURE;
+            }
+
             if(chronometers_in[i].endTime.tv_sec <= 0) // if there is no recorded end time
             {
                 chronometers_in[i].endTime = endTime;
-                int call_status = writeChronometerFile(chronometers_in, chronometerCount_in);
+                call_status = writeChronometerFile(chronometers_in, chronometerCount_in);
                 if(call_status == TOTAL_FAILURE)
                     return TOTAL_FAILURE;
                 else
