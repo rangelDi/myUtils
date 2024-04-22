@@ -1,0 +1,5 @@
+Metadata-Version: 2.1
+Name: finvolpy
+Version: 0.1
+Summary: a tiny (and slow) finite volume package
+Author: rangelDi

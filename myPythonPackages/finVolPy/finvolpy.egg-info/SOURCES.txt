@@ -1,0 +1,8 @@
+setup.py
+finvolpy/__init__.py
+finvolpy/finvolpy.py
+finvolpy.egg-info/PKG-INFO
+finvolpy.egg-info/SOURCES.txt
+finvolpy.egg-info/dependency_links.txt
+finvolpy.egg-info/not-zip-safe
+finvolpy.egg-info/top_level.txt

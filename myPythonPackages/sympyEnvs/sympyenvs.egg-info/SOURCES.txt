@@ -1,0 +1,8 @@
+setup.py
+sympyenvs/__init__.py
+sympyenvs/sympyenvs.py
+sympyenvs.egg-info/PKG-INFO
+sympyenvs.egg-info/SOURCES.txt
+sympyenvs.egg-info/dependency_links.txt
+sympyenvs.egg-info/not-zip-safe
+sympyenvs.egg-info/top_level.txt
