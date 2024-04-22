@@ -158,6 +158,32 @@ int writeChronometerFile(chronometer* chronometers_in, int chronometerCount_in)
 int startChronometer(char* name_in, chronometer** chronometers_in_, int chronometerCount_in)
 {
     chronometer* chronometers_in = (*chronometers_in_);
+
+    if(chronometers_in != NULL) // first search to see if the chronometer exists
+    {
+        for(int i = 0; i < chronometerCount_in; i++)
+        {
+            if(strcmp(chronometers_in[i].name, name_in) == 0) // found the one we are looking for
+            {
+                if(chronometers_in[i].endTime.tv_sec <= 0) // if not stopped
+                {
+                    fprintf(stderr,"error: chronometer already running\n");
+                    return TOTAL_FAILURE;
+                }
+                chronometers_in[i].endTime.tv_sec = -1; // set the end time to undefined again
+                chronometers_in[i].endTime.tv_nsec = -1;
+
+                // write the chronometers again
+                int call_status = writeChronometerFile(chronometers_in, chronometerCount_in);
+                if(call_status == TOTAL_FAILURE)
+                    return TOTAL_FAILURE;
+
+                return SUCCESS;
+            }
+        }
+        // if we break out of the loop we didn't find it, so just continue as usual
+    }
+
     chronometer* reallocation = realloc(chronometers_in, sizeof(chronometer)*(chronometerCount_in+1));
     if(reallocation == NULL)
     {
@@ -194,8 +220,9 @@ int startChronometer(char* name_in, chronometer** chronometers_in_, int chronome
 }
 
 /* 
- * This function will start end a chronometer and write it to file.
+ * This function will end a chronometer and write it to file.
  * Note that the chronometer will not be deleted from the file, it will simply be stopped.
+ * Note that 'ended' chronometers may be restarted.
  *
  * @param name_in The name of the chronometer to end.
  * @param chronometers_in The current list of chronometers.
@@ -212,13 +239,19 @@ int endChronometer(char* name_in, chronometer* chronometers_in, int chronometerC
         {
             struct timespec endTime;
             clock_gettime(CLOCK_REALTIME, &endTime);
-            chronometers_in[i].endTime = endTime;
-
-            int call_status = writeChronometerFile(chronometers_in, chronometerCount_in);
-            if(call_status == TOTAL_FAILURE)
+            if(chronometers_in[i].endTime.tv_sec <= 0) // if there is no recorded end time
+            {
+                chronometers_in[i].endTime = endTime;
+                int call_status = writeChronometerFile(chronometers_in, chronometerCount_in);
+                if(call_status == TOTAL_FAILURE)
+                    return TOTAL_FAILURE;
+                else
+                    return SUCCESS;
+            }else
+            {
+                fprintf(stderr,"error: chronometer already stopped\n");
                 return TOTAL_FAILURE;
-            else
-                return SUCCESS;
+            }
         }
     }
     // if we break out of this loop, we didn't find it
@@ -232,7 +265,7 @@ int endChronometer(char* name_in, chronometer* chronometers_in, int chronometerC
  *      [d]:[h]:[m]:[s]
  *
  * @param name_in The name of the chronometer to be printed or NULL to print all.
- * @param chronomters_in The array of available chronometers.
+ * @param chronometers_in The array of available chronometers.
  * @param chronometerCount_in The chronometer count.
  *
  * @return TOTAL_FAILURE if a specific chronometer could not be found, SUCCESS otherwise.
@@ -349,7 +382,7 @@ int deleteChronometer(char* name_in, chronometer* chronometers_in, int chronomet
                 int call_status = remove(chronometerFilename);
                 if(call_status != 0)
                 {
-                    fprintf(stderr, "failed to remove chronomter file: %s\n",strerror(errno));
+                    fprintf(stderr, "failed to remove chronometer file: %s\n",strerror(errno));
                     return TOTAL_FAILURE;
                 }else
                 {
