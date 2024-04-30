@@ -4,7 +4,7 @@
 #include <time.h>       // for the time stuff
 #include <errno.h>      // for errno
 
-char const chronometerFilename[] = "chronometers";
+char const chronometerFilename[] = "/Users/diegorangel/myUtils/chronometers";
 int const maxNameLength = 250;
                         
 enum
